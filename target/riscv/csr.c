@@ -102,6 +102,11 @@ static int pmp(CPURISCVState *env, int csrno)
 {
     return -!riscv_feature(env, RISCV_FEATURE_PMP);
 }
+
+static int spmp(CPURISCVState *env, int csrno)
+{
+    return -!riscv_feature(env, RISCV_FEATURE_SPMP);
+}
 #endif
 
 /* User Floating-Point CSRs */
@@ -777,6 +782,31 @@ static int write_pmpaddr(CPURISCVState *env, int csrno, target_ulong val)
     return 0;
 }
 
+/* S-mode Physical Memory Protection */
+static int read_spmpcfg(CPURISCVState *env, int csrno, target_ulong *val)
+{
+    *val = spmpcfg_csr_read(env, csrno - CSR_SPMPCFG0);
+    return 0;
+}
+
+static int write_spmpcfg(CPURISCVState *env, int csrno, target_ulong val)
+{
+    spmpcfg_csr_write(env, csrno - CSR_SPMPCFG0, val);
+    return 0;
+}
+
+static int read_spmpaddr(CPURISCVState *env, int csrno, target_ulong *val)
+{
+    *val = spmpaddr_csr_read(env, csrno - CSR_SPMPADDR0);
+    return 0;
+}
+
+static int write_spmpaddr(CPURISCVState *env, int csrno, target_ulong val)
+{
+    spmpaddr_csr_write(env, csrno - CSR_SPMPADDR0, val);
+    return 0;
+}
+
 #endif
 
 /*
@@ -945,6 +975,10 @@ static riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     /* Physical Memory Protection */
     [CSR_PMPCFG0  ... CSR_PMPADDR9] =  { pmp,   read_pmpcfg,  write_pmpcfg   },
     [CSR_PMPADDR0 ... CSR_PMPADDR15] = { pmp,   read_pmpaddr, write_pmpaddr  },
+
+    /* S-mode Physical Memory Protection */
+    [CSR_SPMPCFG0  ... CSR_SPMPADDR9] =  { spmp,   read_spmpcfg,  write_spmpcfg   },
+    [CSR_SPMPADDR0 ... CSR_SPMPADDR15] = { spmp,   read_spmpaddr, write_spmpaddr  },
 
     /* Performance Counters */
     [CSR_HPMCOUNTER3   ... CSR_HPMCOUNTER31] =    { ctr,  read_zero          },

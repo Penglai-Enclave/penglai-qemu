@@ -169,6 +169,7 @@ static void rv64gcsu_priv1_09_1_cpu_init(Object *obj)
     set_resetvec(env, DEFAULT_RSTVEC);
     set_feature(env, RISCV_FEATURE_MMU);
     set_feature(env, RISCV_FEATURE_PMP);
+    set_feature(env, RISCV_FEATURE_SPMP);
 }
 
 static void rv64gcsu_priv1_10_0_cpu_init(Object *obj)
@@ -179,6 +180,7 @@ static void rv64gcsu_priv1_10_0_cpu_init(Object *obj)
     set_resetvec(env, DEFAULT_RSTVEC);
     set_feature(env, RISCV_FEATURE_MMU);
     set_feature(env, RISCV_FEATURE_PMP);
+    set_feature(env, RISCV_FEATURE_SPMP);
 }
 
 static void rv64imacu_nommu_cpu_init(Object *obj)
@@ -188,6 +190,7 @@ static void rv64imacu_nommu_cpu_init(Object *obj)
     set_priv_version(env, PRIV_VERSION_1_10_0);
     set_resetvec(env, DEFAULT_RSTVEC);
     set_feature(env, RISCV_FEATURE_PMP);
+    set_feature(env, RISCV_FEATURE_SPMP);
 }
 
 #endif
@@ -352,6 +355,10 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
         set_feature(env, RISCV_FEATURE_PMP);
     }
 
+    if (cpu->cfg.spmp) {
+        set_feature(env, RISCV_FEATURE_SPMP);
+    }
+
     /* If misa isn't set (rv32 and rv64 machines) set it here */
     if (!env->misa) {
         /* Do some ISA extension error checking */
@@ -447,6 +454,7 @@ static Property riscv_cpu_properties[] = {
     DEFINE_PROP_STRING("priv_spec", RISCVCPU, cfg.priv_spec),
     DEFINE_PROP_BOOL("mmu", RISCVCPU, cfg.mmu, true),
     DEFINE_PROP_BOOL("pmp", RISCVCPU, cfg.pmp, true),
+    DEFINE_PROP_BOOL("spmp", RISCVCPU, cfg.spmp, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
