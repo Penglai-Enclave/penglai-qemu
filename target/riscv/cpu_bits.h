@@ -195,6 +195,28 @@
 #define CSR_PMPADDR14       0x3be
 #define CSR_PMPADDR15       0x3bf
 
+/* S-mode Physical Memory Protection */
+#define CSR_SPMPCFG0         0x1a0
+#define CSR_SPMPCFG1         0x1a1
+#define CSR_SPMPCFG2         0x1a2
+#define CSR_SPMPCFG3         0x1a3
+#define CSR_SPMPADDR0        0x1b0
+#define CSR_SPMPADDR1        0x1b1
+#define CSR_SPMPADDR2        0x1b2
+#define CSR_SPMPADDR3        0x1b3
+#define CSR_SPMPADDR4        0x1b4
+#define CSR_SPMPADDR5        0x1b5
+#define CSR_SPMPADDR6        0x1b6
+#define CSR_SPMPADDR7        0x1b7
+#define CSR_SPMPADDR8        0x1b8
+#define CSR_SPMPADDR9        0x1b9
+#define CSR_SPMPADDR10       0x1ba
+#define CSR_SPMPADDR11       0x1bb
+#define CSR_SPMPADDR12       0x1bc
+#define CSR_SPMPADDR13       0x1bd
+#define CSR_SPMPADDR14       0x1be
+#define CSR_SPMPADDR15       0x1bf
+
 /* Debug/Trace Registers (shared with Debug Mode) */
 #define CSR_TSELECT         0x7a0
 #define CSR_TDATA1          0x7a1

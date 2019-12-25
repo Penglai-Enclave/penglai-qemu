@@ -81,6 +81,7 @@
 *.log
 *.pdf
 *.pod
+*.po
 *.cps
 *.fns
 *.kys
