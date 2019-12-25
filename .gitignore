@@ -159,3 +159,9 @@ trace-dtrace-root.dtrace
 trace-ust-all.h
 trace-ust-all.c
 /target/arm/decode-sve.inc.c
+/spmp_test/**/*.symvers
+/spmp_test/**/*.order
+/spmp_test/**/*.mod*
+/spmp_test/**/*.o
+/spmp_test/**/*.mk
+/spmp_test/**/*.ko
