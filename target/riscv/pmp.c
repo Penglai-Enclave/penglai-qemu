@@ -43,6 +43,11 @@ static void pmp_write_cfg(CPURISCVState *env, uint32_t addr_index,
 static uint8_t pmp_read_cfg(CPURISCVState *env, uint32_t addr_index);
 static void pmp_update_rule(CPURISCVState *env, uint32_t pmp_index);
 
+static void spmp_write_cfg(CPURISCVState *env, uint32_t addr_index,
+    uint8_t val);
+static uint8_t spmp_read_cfg(CPURISCVState *env, uint32_t addr_index);
+static void spmp_update_rule(CPURISCVState *env, uint32_t spmp_index);
+
 /*
  * Accessor method to extract address matching type 'a field' from cfg reg
  */
@@ -81,11 +86,47 @@ static inline int pmp_is_locked(CPURISCVState *env, uint32_t pmp_index)
 }
 
 /*
+ * Check whether a sPMP is locked or not.
+ */
+static inline int spmp_is_locked(CPURISCVState *env, uint32_t spmp_index)
+{
+
+    if (env->spmp_state.spmp[spmp_index].cfg_reg & SPMP_LOCK) {
+        return 1;
+    }
+
+    /* Top SPMP has no 'next' to check */
+    if ((spmp_index + 1u) >= MAX_RISCV_SPMPS) {
+        return 0;
+    }
+
+    /* In TOR mode, need to check the lock bit of the next spmp
+     * (if there is a next)
+     */
+    const uint8_t a_field =
+        pmp_get_a_field(env->spmp_state.spmp[spmp_index + 1].cfg_reg);
+    if ((env->spmp_state.spmp[spmp_index + 1u].cfg_reg & SPMP_LOCK) &&
+         (SPMP_AMATCH_TOR == a_field)) {
+        return 1;
+    }
+
+    return 0;
+}
+
+/*
  * Count the number of active rules.
  */
 static inline uint32_t pmp_get_num_rules(CPURISCVState *env)
 {
      return env->pmp_state.num_rules;
+}
+
+/*
+ * Count the number of active rules.
+ */
+static inline uint32_t spmp_get_num_rules(CPURISCVState *env)
+{
+     return env->spmp_state.num_rules;
 }
 
 /*
@@ -100,6 +141,17 @@ static inline uint8_t pmp_read_cfg(CPURISCVState *env, uint32_t pmp_index)
     return 0;
 }
 
+/*
+ * Accessor to get the cfg reg for a specific sPMP/HART
+ */
+static inline uint8_t spmp_read_cfg(CPURISCVState *env, uint32_t spmp_index)
+{
+    if (spmp_index < MAX_RISCV_SPMPS) {
+        return env->spmp_state.spmp[spmp_index].cfg_reg;
+    }
+
+    return 0;
+}
 
 /*
  * Accessor to set the cfg reg for a specific PMP/HART
@@ -117,6 +169,25 @@ static void pmp_write_cfg(CPURISCVState *env, uint32_t pmp_index, uint8_t val)
     } else {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "ignoring pmpcfg write - out of bounds\n");
+    }
+}
+
+/*
+ * Accessor to set the cfg reg for a specific sPMP/HART
+ * Bounds checks and relevant lock bit.
+ */
+static void spmp_write_cfg(CPURISCVState *env, uint32_t spmp_index, uint8_t val)
+{
+    if (spmp_index < MAX_RISCV_SPMPS) {
+        if (!spmp_is_locked(env, spmp_index)) {
+            env->spmp_state.spmp[spmp_index].cfg_reg = val;
+            spmp_update_rule(env, spmp_index);
+        } else {
+            qemu_log_mask(LOG_GUEST_ERROR, "ignoring spmpcfg write - locked\n");
+        }
+    } else {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "ignoring spmpcfg write - out of bounds\n");
     }
 }
 
@@ -205,6 +276,63 @@ static void pmp_update_rule(CPURISCVState *env, uint32_t pmp_index)
     }
 }
 
+/*
+ * Convert cfg/addr reg values here into simple 'sa' --> start address and 'ea'
+ *   end address values.
+ */
+static void spmp_update_rule(CPURISCVState *env, uint32_t spmp_index)
+{
+    int i;
+
+    env->spmp_state.num_rules = 0;
+
+    uint8_t this_cfg = env->spmp_state.spmp[spmp_index].cfg_reg;
+    target_ulong this_addr = env->spmp_state.spmp[spmp_index].addr_reg;
+    target_ulong prev_addr = 0u;
+    target_ulong sa = 0u;
+    target_ulong ea = 0u;
+
+    if (spmp_index >= 1u) {
+        prev_addr = env->spmp_state.spmp[spmp_index - 1].addr_reg;
+    }
+
+    switch (pmp_get_a_field(this_cfg)) {
+    case SPMP_AMATCH_OFF:
+        sa = 0u;
+        ea = -1;
+        break;
+
+    case SPMP_AMATCH_TOR:
+        sa = prev_addr << 2; /* shift up from [xx:0] to [xx+2:2] */
+        ea = (this_addr << 2) - 1u;
+        break;
+
+    case SPMP_AMATCH_NA4:
+        sa = this_addr << 2; /* shift up from [xx:0] to [xx+2:2] */
+        ea = (this_addr + 4u) - 1u;
+        break;
+
+    case SPMP_AMATCH_NAPOT:
+        pmp_decode_napot(this_addr, &sa, &ea);
+        break;
+
+    default:
+        sa = 0u;
+        ea = 0u;
+        break;
+    }
+    env->spmp_state.addr[spmp_index].sa = sa;
+    env->spmp_state.addr[spmp_index].ea = ea;
+
+    for (i = 0; i < MAX_RISCV_SPMPS; i++) {
+        const uint8_t a_field =
+            pmp_get_a_field(env->spmp_state.spmp[i].cfg_reg);
+        if (SPMP_AMATCH_OFF != a_field) {
+            env->spmp_state.num_rules++;
+        }
+    }
+}
+
 static int pmp_is_in_range(CPURISCVState *env, int pmp_index, target_ulong addr)
 {
     int result = 0;
@@ -219,6 +347,19 @@ static int pmp_is_in_range(CPURISCVState *env, int pmp_index, target_ulong addr)
     return result;
 }
 
+static int spmp_is_in_range(CPURISCVState *env, int spmp_index, target_ulong addr)
+{
+    int result = 0;
+
+    if ((addr >= env->spmp_state.addr[spmp_index].sa)
+        && (addr <= env->spmp_state.addr[spmp_index].ea)) {
+        result = 1;
+    } else {
+        result = 0;
+    }
+
+    return result;
+}
 
 /*
  * Public Interface
@@ -294,6 +435,82 @@ bool pmp_hart_has_privs(CPURISCVState *env, target_ulong addr,
     return ret == 1 ? true : false;
 }
 
+/*
+ * Check if the address has required RWX privs to complete desired operation
+ */
+bool spmp_hart_has_privs(CPURISCVState *env, target_ulong addr,
+    target_ulong size, spmp_priv_t privs, target_ulong mode)
+{
+    int i = 0;
+    int ret = -1;
+    target_ulong s = 0;
+    target_ulong e = 0;
+    spmp_priv_t allowed_privs = 0;
+
+    /* Short cut if no rules */
+    if (0 == spmp_get_num_rules(env)) {
+        return true;
+    }
+
+    for (i = 0; i < MAX_RISCV_SPMPS; i++) {
+        s = spmp_is_in_range(env, i, addr);
+        e = spmp_is_in_range(env, i, addr + size - 1);
+
+        /* partially inside */
+        if ((s + e) == 1) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "spmp violation - access is partially inside\n");
+            ret = 0;
+            break;
+        }
+
+        /* fully inside */
+        const uint8_t a_field =
+            pmp_get_a_field(env->spmp_state.spmp[i].cfg_reg);
+
+        /*
+         * If the SPMP entry is not off and the address is in range, do the priv
+         * check
+         */
+        if (((s + e) == 2) && (SPMP_AMATCH_OFF != a_field)) {
+            allowed_privs = SPMP_READ | SPMP_WRITE | SPMP_EXEC;
+
+            /* SMAP and SMEP */
+			if ((mode == PRV_S) && (env->spmp_state.spmp[i].cfg_reg & SPMP_USER)){
+				if (!(env->mstatus & (1 << 18)) || (privs & SPMP_EXEC)) {
+					ret = 0;
+					break;
+				}
+			}
+
+            if ((mode == PRV_U) || spmp_is_locked(env, i)) {
+                allowed_privs &= env->spmp_state.spmp[i].cfg_reg;
+            }
+
+            if ((privs & allowed_privs) == privs) {
+                ret = 1;
+                break;
+            } else {
+                ret = 0;
+                break;
+            }
+        }
+    }
+
+    /* No rule matched */
+     if (ret == -1) {
+        if (mode >= PRV_S) {
+            ret = 1; /* If no SPMP entry matches an
+                      * M-Mode or S-Mode access, the access succeeds */
+        } else {
+            ret = 0; /* Other modes are not allowed to succeed if they don't
+                      * match a rule, but there are rules.  We've checked for
+                      * no rule earlier in this function. */
+        }
+    }
+
+    return ret == 1 ? true : false;
+}
 
 /*
  * Handle a write to a pmpcfg CSP
@@ -320,6 +537,27 @@ void pmpcfg_csr_write(CPURISCVState *env, uint32_t reg_index,
     }
 }
 
+/*
+ * Handle a write to a spmpcfg CSP
+ */
+void spmpcfg_csr_write(CPURISCVState *env, uint32_t reg_index,
+    target_ulong val)
+{
+    int i;
+    uint8_t cfg_val;
+
+    if ((reg_index & 1) && (sizeof(target_ulong) == 8)) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "ignoring pcfg write - incorrect address\n");
+        return;
+    }
+
+    for (i = 0; i < sizeof(target_ulong); i++) {
+        cfg_val = (val >> 8 * i)  & 0xff;
+        spmp_write_cfg(env, (reg_index * sizeof(target_ulong)) + i,
+            cfg_val);
+    }
+}
 
 /*
  * Handle a read from a pmpcfg CSP
@@ -341,6 +579,22 @@ target_ulong pmpcfg_csr_read(CPURISCVState *env, uint32_t reg_index)
     return cfg_val;
 }
 
+/*
+ * Handle a read from a spmpcfg CSP
+ */
+target_ulong spmpcfg_csr_read(CPURISCVState *env, uint32_t reg_index)
+{
+    int i;
+    target_ulong cfg_val = 0;
+    target_ulong val = 0;
+
+    for (i = 0; i < sizeof(target_ulong); i++) {
+        val = spmp_read_cfg(env, (reg_index * sizeof(target_ulong)) + i);
+        cfg_val |= (val << (i * 8));
+    }
+
+    return cfg_val;
+}
 
 /*
  * Handle a write to a pmpaddr CSP
@@ -365,6 +619,26 @@ void pmpaddr_csr_write(CPURISCVState *env, uint32_t addr_index,
     }
 }
 
+/*
+ * Handle a write to a spmpaddr CSP
+ */
+void spmpaddr_csr_write(CPURISCVState *env, uint32_t addr_index,
+    target_ulong val)
+{
+
+    if (addr_index < MAX_RISCV_SPMPS) {
+        if (!spmp_is_locked(env, addr_index)) {
+            env->spmp_state.spmp[addr_index].addr_reg = val;
+            spmp_update_rule(env, addr_index);
+        } else {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "ignoring spmpaddr write - locked\n");
+        }
+    } else {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "ignoring spmpaddr write - out of bounds\n");
+    }
+}
 
 /*
  * Handle a read from a pmpaddr CSP
@@ -379,6 +653,20 @@ target_ulong pmpaddr_csr_read(CPURISCVState *env, uint32_t addr_index)
     } else {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "ignoring pmpaddr read - out of bounds\n");
+        return 0;
+    }
+}
+
+/*
+ * Handle a read from a spmpaddr CSP
+ */
+target_ulong spmpaddr_csr_read(CPURISCVState *env, uint32_t addr_index)
+{
+    if (addr_index < MAX_RISCV_SPMPS) {
+        return env->spmp_state.spmp[addr_index].addr_reg;
+    } else {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "ignoring spmpaddr read - out of bounds\n");
         return 0;
     }
 }
