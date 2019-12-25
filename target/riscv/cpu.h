@@ -75,7 +75,8 @@
 enum {
     RISCV_FEATURE_MMU,
     RISCV_FEATURE_PMP,
-    RISCV_FEATURE_MISA
+    RISCV_FEATURE_MISA,
+    RISCV_FEATURE_SPMP
 };
 
 #define PRIV_VERSION_1_09_1 0x00010901
@@ -88,6 +89,7 @@ enum {
 #define MMU_USER_IDX 3
 
 #define MAX_RISCV_PMPS (16)
+#define MAX_RISCV_SPMPS (16)
 
 typedef struct CPURISCVState CPURISCVState;
 
@@ -165,6 +167,9 @@ struct CPURISCVState {
     /* physical memory protection */
     pmp_table_t pmp_state;
 
+    /* S-mode physical memory protection */
+    spmp_table_t spmp_state;
+
     /* True if in debugger mode.  */
     bool debugger;
 #endif
@@ -230,6 +235,7 @@ typedef struct RISCVCPU {
         char *user_spec;
         bool mmu;
         bool pmp;
+        bool spmp;
     } cfg;
 } RISCVCPU;
 
