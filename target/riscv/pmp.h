@@ -33,7 +33,7 @@ typedef enum {
     SPMP_READ  = 1 << 0,
     SPMP_WRITE = 1 << 1,
     SPMP_EXEC  = 1 << 2,
-	SPMP_USER  = 1 << 6,
+    SPMP_USER  = 1 << 6,
     SPMP_LOCK  = 1 << 7
 } spmp_priv_t;
 

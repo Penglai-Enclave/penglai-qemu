@@ -476,12 +476,12 @@ bool spmp_hart_has_privs(CPURISCVState *env, target_ulong addr,
             allowed_privs = SPMP_READ | SPMP_WRITE | SPMP_EXEC;
 
             /* SMAP and SMEP */
-			if ((mode == PRV_S) && (env->spmp_state.spmp[i].cfg_reg & SPMP_USER)){
-				if (!(env->mstatus & (1 << 18)) || (privs & SPMP_EXEC)) {
-					ret = 0;
-					break;
-				}
-			}
+            if ((mode == PRV_S) && (env->spmp_state.spmp[i].cfg_reg & SPMP_USER)){
+                if (!(env->mstatus & (1 << 18)) || (privs & SPMP_EXEC)) {
+                    ret = 0;
+                    break;
+                }
+            }
 
             if ((mode == PRV_U) || spmp_is_locked(env, i)) {
                 allowed_privs &= env->spmp_state.spmp[i].cfg_reg;
