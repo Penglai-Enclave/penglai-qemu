@@ -84,6 +84,7 @@ enum {
 #define PRIV_VERSION_1_11_0 0x00011100
 
 #define TRANSLATE_PMP_FAIL 2
+#define TRANSLATE_SPMP_FAIL 4
 #define TRANSLATE_FAIL 1
 #define TRANSLATE_SUCCESS 0
 #define MMU_USER_IDX 3
@@ -169,6 +170,9 @@ struct CPURISCVState {
 
     /* S-mode physical memory protection */
     spmp_table_t spmp_state;
+
+    /* sPMP Exception CSR */
+    target_ulong spmpexcp;
 
     /* True if in debugger mode.  */
     bool debugger;

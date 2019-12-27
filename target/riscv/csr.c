@@ -807,6 +807,19 @@ static int write_spmpaddr(CPURISCVState *env, int csrno, target_ulong val)
     return 0;
 }
 
+/* CSR_SPMPEXCP read/write */
+static int read_spmpexcp(CPURISCVState *env, int csrno, target_ulong *val)
+{
+    *val = env->spmpexcp;
+    return 0;
+}
+
+static int write_spmpexcp(CPURISCVState *env, int csrno, target_ulong val)
+{
+    env->spmpexcp = val;
+    return 0;
+}
+
 #endif
 
 /*
@@ -979,6 +992,9 @@ static riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     /* S-mode Physical Memory Protection */
     [CSR_SPMPCFG0  ... CSR_SPMPADDR9] =  { spmp,   read_spmpcfg,  write_spmpcfg   },
     [CSR_SPMPADDR0 ... CSR_SPMPADDR15] = { spmp,   read_spmpaddr, write_spmpaddr  },
+
+    /* sPMP Exception CSR */
+    [CSR_SPMPEXCP] =            { spmp,     read_spmpexcp,  write_spmpexcp  },
 
     /* Performance Counters */
     [CSR_HPMCOUNTER3   ... CSR_HPMCOUNTER31] =    { ctr,  read_zero          },

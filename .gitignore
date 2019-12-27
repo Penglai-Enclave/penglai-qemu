@@ -166,3 +166,4 @@ trace-ust-all.c
 /spmp_test/**/*.o
 /spmp_test/**/*.mk
 /spmp_test/**/*.ko
+/spmp_test/**/*.cmd

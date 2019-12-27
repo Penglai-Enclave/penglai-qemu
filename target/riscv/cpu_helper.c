@@ -249,7 +249,7 @@ restart:
         if (riscv_feature(env, RISCV_FEATURE_SPMP) &&
             !spmp_hart_has_privs(env, pte_addr, sizeof(target_ulong),
             1 << MMU_DATA_LOAD, PRV_S)) {
-            return TRANSLATE_PMP_FAIL;
+            return TRANSLATE_SPMP_FAIL;
         }
 #if defined(TARGET_RISCV32)
         target_ulong pte = ldl_phys(cs->as, pte_addr);
@@ -358,9 +358,19 @@ restart:
 }
 
 static void raise_mmu_exception(CPURISCVState *env, target_ulong address,
-                                MMUAccessType access_type, bool pmp_violation)
+                                MMUAccessType access_type, bool pmp_violation, bool spmp_violation)
 {
     CPUState *cs = env_cpu(env);
+
+    /*
+     * Kernel can tell whether a page_fault is caused by spmp_violation
+     * via the value of CSR_SPMPEXCP.
+     *
+     * Kernel should set CSR_SPMPEXCP back to 0 after handle the exception.
+     * */
+    if (spmp_violation) {
+        env->spmpexcp = 1;
+    }
     int page_fault_exceptions =
         (env->priv_ver >= PRIV_VERSION_1_10_0) &&
         get_field(env->satp, SATP_MODE) != VM_1_10_MBARE &&
@@ -447,6 +457,7 @@ bool riscv_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     hwaddr pa = 0;
     int prot;
     bool pmp_violation = false;
+    bool spmp_violation = false;
     int ret = TRANSLATE_FAIL;
     int mode = mmu_idx;
 
@@ -473,10 +484,13 @@ bool riscv_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     if (riscv_feature(env, RISCV_FEATURE_SPMP) &&
         (ret == TRANSLATE_SUCCESS) &&
         !spmp_hart_has_privs(env, pa, size, 1 << access_type, mode)) {
-        ret = TRANSLATE_PMP_FAIL;
+        ret = TRANSLATE_SPMP_FAIL;
     }
     if (ret == TRANSLATE_PMP_FAIL) {
         pmp_violation = true;
+    }
+    if (ret == TRANSLATE_SPMP_FAIL) {
+        spmp_violation = true;
     }
     if (ret == TRANSLATE_SUCCESS) {
         tlb_set_page(cs, address & TARGET_PAGE_MASK, pa & TARGET_PAGE_MASK,
@@ -485,7 +499,7 @@ bool riscv_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     } else if (probe) {
         return false;
     } else {
-        raise_mmu_exception(env, address, access_type, pmp_violation);
+        raise_mmu_exception(env, address, access_type, pmp_violation, spmp_violation);
         riscv_raise_exception(env, cs->exception_index, retaddr);
     }
 #else
