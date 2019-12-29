@@ -7,6 +7,7 @@
 - **cpu_bits.h**
   - [x] csr_spmpcfg0~3	 	**0x1a0~0x1a3**
   - [x] csr_spmpaddr0~15    **0x1b0~0x1bf**
+  - [x] csr_spmpexcp        **0x1c0**
 
 
 ### Data structure
@@ -30,6 +31,7 @@
   - [x] check riscv_feature && spmp_hart_has_privs
     - get physical addr
     - tlb fill
+  - [x] add spmp_violation
 - **csr.c**
   - [x] csr function table
   - [x] define spmp_csr access priv to spmp
