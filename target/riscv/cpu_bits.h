@@ -166,6 +166,12 @@
 #define CSR_STVAL           0x143
 #define CSR_SIP             0x144
 
+/* sPMP Exception CSR 
+ * Whenever a spmp_violation happens, CSR_SPMPEXCP is set to 1.
+ * Kernel should set this register back to 0 after handle the exception.
+ * */
+#define CSR_SPMPEXCP        0x145
+
 /* Legacy Supervisor Trap Handling (priv v1.9.1) */
 #define CSR_SBADADDR        0x143
 
@@ -214,12 +220,6 @@
 #define CSR_SPMPADDR13      0x1bd
 #define CSR_SPMPADDR14      0x1be
 #define CSR_SPMPADDR15      0x1bf
-
-/* sPMP Exception CSR 
- * Whenever a spmp_violation happens, CSR_SPMPEXCP is set to 1.
- * Kernel should set this register back to 0 after handle the exception.
- * */
-#define CSR_SPMPEXCP        0x1c0
 
 /* Debug/Trace Registers (shared with Debug Mode) */
 #define CSR_TSELECT         0x7a0

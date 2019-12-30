@@ -7,7 +7,7 @@
 - **cpu_bits.h**
   - [x] csr_spmpcfg0~3	 	**0x1a0~0x1a3**
   - [x] csr_spmpaddr0~15    **0x1b0~0x1bf**
-  - [x] csr_spmpexcp        **0x1c0**
+  - [x] csr_spmpexcp        **0x145**
 
 
 ### Data structure
