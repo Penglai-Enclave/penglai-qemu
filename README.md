@@ -1,11 +1,11 @@
-# Modified qemu for penglai-enclave
+# Modified qemu to support sPMP 
 
 ## sPMP implementation
 
 ### Register
 
 - **cpu_bits.h**
-  - [x] csr_spmpcfg0~3	 	**0x1a0~0x1a3**
+  - [x] csr_spmpcfg0~3	    **0x1a0~0x1a3**
   - [x] csr_spmpaddr0~15    **0x1b0~0x1bf**
   - [x] csr_spmpexcp        **0x145**
 
@@ -90,21 +90,4 @@
     - spmpaddr0 = 0x208ccdff
     - attempt to execute code at 0x82333000
     - kernel should panic
-
-### sPMP test build guide
-
-1. enter docker
-```
-sudo docker run -v $(pwd):/home/penglai/penglai-enclave -w /home/penglai/penglai-enclave --rm -it ddnirvana/penglai-enclave:v0.1
-```
-2. make kernel modules for test
-```
-cd riscv-qemu/spmp_test
-./build.sh
-exit
-```
-3. build qemu for test
-```
-sudo ./docker_cmd.sh qemu
-```
 
